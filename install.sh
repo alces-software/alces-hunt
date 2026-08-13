@@ -163,24 +163,29 @@ install_go() {
 script_dir() {
   local src="${BASH_SOURCE[0]:-}"
   if [ -n "$src" ] && [ -f "$src" ]; then
-    cd "$(dirname "$src")" && pwd
+    cd "$(dirname "$src")" >/dev/null && pwd
   else
-    echo ""
+    printf '%s' ""
   fi
 }
 
+# Sets SOURCE_DIR. Must not print the path on stdout — callers do not
+# capture this function (curl|bash + logging used to mix into $src).
 obtain_source() {
-  local here
+  local here dest
   here="$(script_dir)"
   if [ -n "$here" ] && [ -f "${here}/go.mod" ] && [ -f "${here}/cmd/alces-hunt/main.go" ]; then
-    echo "$here"
+    SOURCE_DIR="$here"
+    log "using local source ${SOURCE_DIR}"
     return 0
   fi
-  local dest
   dest="$(mktemp -d /tmp/alces-hunt-src.XXXXXX)"
   log "cloning ${REPO} (${REF}) into ${dest}"
-  git clone --depth 1 --branch "$REF" "$REPO" "$dest/alces-hunt"
-  echo "${dest}/alces-hunt"
+  git clone --depth 1 --branch "$REF" "$REPO" "$dest/alces-hunt" >&2
+  SOURCE_DIR="${dest}/alces-hunt"
+  if [ ! -f "${SOURCE_DIR}/go.mod" ]; then
+    die "clone did not produce a source tree at ${SOURCE_DIR}"
+  fi
 }
 
 write_config() {
@@ -217,6 +222,9 @@ EOF
 
 install_tree() {
   local src="$1"
+  if [ ! -d "$src" ] || [ ! -f "${src}/go.mod" ]; then
+    die "source path is not an alces-hunt checkout: ${src}"
+  fi
   log "building alces-hunt"
   (
     cd "$src"
@@ -299,9 +307,9 @@ main() {
   need_root
   install_packages
   install_go
-  local src
-  src="$(obtain_source)"
-  install_tree "$src"
+  SOURCE_DIR=""
+  obtain_source
+  install_tree "$SOURCE_DIR"
   maybe_enable_service
   print_next_steps
 }

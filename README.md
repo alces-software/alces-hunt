@@ -17,6 +17,8 @@ Server and send client (packages, Go, binary, systemd units):
 curl -fsSL https://raw.githubusercontent.com/sierra-tango-echo/alces-hunt/main/install.sh | sudo bash
 ```
 
+The script that runs is the one curl downloads. After a fix lands on `main`, re-run that command (add `?$(date +%s)` to the URL if a cache serves the old file).
+
 Server only or send only:
 
 ```bash
