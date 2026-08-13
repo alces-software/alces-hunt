@@ -37,7 +37,7 @@ TARGET_HOST="${TARGET_HOST:-}"
 ENABLE_SERVICE="${ENABLE_SERVICE:-0}"
 GO_VERSION="${GO_VERSION:-1.22.10}"
 
-log()  { printf '==> %s\n' "$*"; }
+log()  { printf '==> %s\n' "$*" >&2; }
 warn() { printf 'warning: %s\n' "$*" >&2; }
 die()  { printf 'error: %s\n' "$*" >&2; exit 1; }
 
