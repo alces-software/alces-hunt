@@ -1,0 +1,17 @@
+[Unit]
+Description=alces-hunt client (send mode)
+Documentation=https://github.com/sierra-tango-echo/alces-hunt
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=ALCES_HUNT_ROOT=/opt/alces-hunt
+Environment=ALCES_HUNT_autorun_mode=send
+Environment=ALCES_HUNT_pidfile=/opt/alces-hunt/var/alces-hunt-send.pid
+ExecStart=/opt/alces-hunt/bin/alces-hunt autorun
+RemainAfterExit=no
+WorkingDirectory=/opt/alces-hunt
+
+[Install]
+WantedBy=multi-user.target

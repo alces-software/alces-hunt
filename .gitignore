@@ -1,0 +1,10 @@
+/bin/alces-hunt
+/var/
+/etc/config.yml
+*.swp
+*.swo
+.idea/
+.vscode/
+*.test
+coverage.out
+dist/

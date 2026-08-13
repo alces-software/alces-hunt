@@ -1,0 +1,26 @@
+#!/bin/bash
+# Copyright (C) 2026 Alces Software Ltd.
+# SPDX-License-Identifier: EPL-2.0
+#
+# Service wrapper used by systemd (or other supervisors).
+# Usage: bin/start <pidfile>
+
+set -euo pipefail
+
+pid_file="${1:-}"
+if [ -z "$pid_file" ]; then
+  echo "No pid_file provided!" >&2
+  exit 1
+fi
+
+if [ -z "${ALCES_HUNT_ROOT:-}" ]; then
+  echo "ALCES_HUNT_ROOT has not been set!" >&2
+  exit 1
+fi
+
+install_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+mkdir -p "${install_dir}/var/log"
+
+exec env ALCES_HUNT_pidfile="$pid_file" \
+  "${install_dir}/bin/alces-hunt" autorun \
+  2>&1 | tee -a "${install_dir}/var/log/log.txt"
