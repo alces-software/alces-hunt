@@ -1,6 +1,6 @@
 [Unit]
 Description=alces-hunt discovery server (hunt mode)
-Documentation=https://github.com/sierra-tango-echo/alces-hunt
+Documentation=https://github.com/alces-software/alces-hunt
 After=network-online.target
 Wants=network-online.target
 

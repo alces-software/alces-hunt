@@ -18,13 +18,13 @@ does not compile anything.
 (usually `sudo`):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/sierra-tango-echo/alces-hunt/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/alces-software/alces-hunt/main/install.sh | sudo bash
 ```
 
 **Local install** — `~/.local/alces-hunt` when `/opt` is not writable:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/sierra-tango-echo/alces-hunt/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/alces-software/alces-hunt/main/install.sh | bash
 ```
 
 Config, inventory, and logs stay under the install root:
@@ -52,13 +52,13 @@ Useful environment variables:
 
 ## Pre-built binaries
 
-Each [GitHub Release](https://github.com/sierra-tango-echo/alces-hunt/releases)
+Each [GitHub Release](https://github.com/alces-software/alces-hunt/releases)
 attaches `alces-hunt-linux-amd64`, `alces-hunt-linux-arm64`, matching
 tarballs, and `SHA256SUMS`.
 
 ```bash
 curl -fsSL -o alces-hunt \
-  https://github.com/sierra-tango-echo/alces-hunt/releases/latest/download/alces-hunt-linux-amd64
+  https://github.com/alces-software/alces-hunt/releases/latest/download/alces-hunt-linux-amd64
 chmod +x alces-hunt
 ```
 

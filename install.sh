@@ -5,10 +5,10 @@
 # Download a pre-built alces-hunt binary and install it.
 #
 # System install (when /opt is writable, typically via sudo):
-#   curl -fsSL https://raw.githubusercontent.com/sierra-tango-echo/alces-hunt/main/install.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/alces-software/alces-hunt/main/install.sh | sudo bash
 #
 # Local install (no root — uses ~/.local/alces-hunt):
-#   curl -fsSL https://raw.githubusercontent.com/sierra-tango-echo/alces-hunt/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/alces-software/alces-hunt/main/install.sh | bash
 #
 # Optional environment:
 #   VERSION=latest|v0.2       release tag to download (default: latest)
@@ -19,7 +19,7 @@
 #   TARGET_HOST=
 #   AUTORUN_MODE=hunt|send
 #   ENABLE_SERVICE=1          enable systemd unit (system install only)
-#   REPO_SLUG=sierra-tango-echo/alces-hunt
+#   REPO_SLUG=alces-software/alces-hunt
 
 set -euo pipefail
 
@@ -29,7 +29,7 @@ PORT="${PORT:-2770}"
 AUTH_KEY="${AUTH_KEY:-}"
 TARGET_HOST="${TARGET_HOST:-}"
 ENABLE_SERVICE="${ENABLE_SERVICE:-0}"
-REPO_SLUG="${REPO_SLUG:-sierra-tango-echo/alces-hunt}"
+REPO_SLUG="${REPO_SLUG:-alces-software/alces-hunt}"
 RELEASE_BASE="https://github.com/${REPO_SLUG}/releases"
 
 log()  { printf '==> %s\n' "$*" >&2; }
