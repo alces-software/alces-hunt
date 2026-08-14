@@ -9,66 +9,72 @@ into a managed inventory with canonical labels and groups.
 Copyright (C) 2026 Alces Software Ltd. Distributed under the Eclipse Public
 License 2.0. See `LICENSE`, `LICENSE.EPL-2.0`, and `NOTICE`.
 
-## Pre-built binaries
+## Install
 
-Push a tag `vX.Y.Z` to publish Linux amd64 and arm64 binaries on the
-[GitHub Releases](https://github.com/sierra-tango-echo/alces-hunt/releases)
-page. Each release includes the raw binary, a tarball (config example,
-licenses, systemd units, `bin/start`), and `SHA256SUMS`.
+`install.sh` downloads the pre-built Linux binary from GitHub Releases. It
+does not compile anything.
 
-```bash
-# Linux x86_64
-curl -fsSL -o alces-hunt \
-  https://github.com/sierra-tango-echo/alces-hunt/releases/latest/download/alces-hunt-linux-amd64
-chmod +x alces-hunt
-sudo install -m 0755 alces-hunt /usr/local/bin/alces-hunt
-```
-
-For arm64 use `alces-hunt-linux-arm64`. Builds from `main` are also
-available as workflow artifacts if you have not tagged a release yet.
-
-The binary needs a data root (`ALCES_HUNT_ROOT`) with `var/buffer` and
-`var/parsed`. Send mode still needs `dmidecode` on the node unless you
-pass `--label`.
-
-## Install on a clean Linux host
-
-Server and send client (packages, Go, binary, systemd units):
+**System install** — `/opt/alces-hunt` when that location is writable
+(usually `sudo`):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/sierra-tango-echo/alces-hunt/main/install.sh | sudo bash
 ```
 
-The script that runs is the one curl downloads. After a fix lands on `main`, re-run that command (add `?$(date +%s)` to the URL if a cache serves the old file).
-
-Server only or send only:
+**Local install** — `~/.local/alces-hunt` when `/opt` is not writable:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/sierra-tango-echo/alces-hunt/main/install.sh | sudo env MODE=server bash
-curl -fsSL https://raw.githubusercontent.com/sierra-tango-echo/alces-hunt/main/install.sh | sudo env MODE=send bash
+curl -fsSL https://raw.githubusercontent.com/sierra-tango-echo/alces-hunt/main/install.sh | bash
 ```
 
-From a checkout:
+Config, inventory, and logs stay under the install root:
+
+| Path | Role |
+|---|---|
+| `$PREFIX/bin/alces-hunt` | binary |
+| `$PREFIX/etc/config.yml` | config |
+| `$PREFIX/var/buffer` | unparsed nodes |
+| `$PREFIX/var/parsed` | named inventory |
+| `$PREFIX/var/log` | logs |
+
+The binary locates that root from its own path (or `ALCES_HUNT_ROOT`). A
+symlink is also placed in `/usr/local/bin` or `~/.local/bin`.
+
+Useful environment variables:
+
+| Variable | Default |
+|---|---|
+| `VERSION` | `latest` (or pin e.g. `v0.2`) |
+| `PREFIX` | `/opt/alces-hunt` if writable, else `~/.local/alces-hunt` |
+| `MODE` | `both` (`server` / `send`; send may install `dmidecode` if root) |
+| `PORT` / `AUTH_KEY` / `TARGET_HOST` | written into a new `etc/config.yml` |
+| `ENABLE_SERVICE=1` | enable the systemd unit (system install) |
+
+## Pre-built binaries
+
+Each [GitHub Release](https://github.com/sierra-tango-echo/alces-hunt/releases)
+attaches `alces-hunt-linux-amd64`, `alces-hunt-linux-arm64`, matching
+tarballs, and `SHA256SUMS`.
 
 ```bash
-sudo ./install.sh
-sudo MODE=send ./install.sh
+curl -fsSL -o alces-hunt \
+  https://github.com/sierra-tango-echo/alces-hunt/releases/latest/download/alces-hunt-linux-amd64
+chmod +x alces-hunt
 ```
 
-The script installs upstream packages (`git`, `gcc`, `make`, `curl`; plus
-`dmidecode` and `ipmitool` for send mode), builds the Go binary, and installs
-to `/opt/alces-hunt`. Override `PREFIX`, `PORT`, `AUTH_KEY`, `TARGET_HOST`,
-`REPO`, and `REF` as needed.
+If you copy only the binary, set `ALCES_HUNT_ROOT` to a directory that
+contains `etc/` and `var/`. Send mode still needs `dmidecode` unless you
+pass `--label`.
 
 ## Quick start
 
 ```bash
 # Server
-sudo ALCES_HUNT_ROOT=/opt/alces-hunt alces-hunt hunt --port 2770 --auth secret
+alces-hunt hunt --port 2770 --auth secret
 
 # Client (default label is dmidecode system-serial-number)
-sudo ALCES_HUNT_ROOT=/opt/alces-hunt alces-hunt send --server 10.0.0.1 --port 2770 --auth secret
-sudo ALCES_HUNT_ROOT=/opt/alces-hunt alces-hunt send --broadcast --broadcast-address 10.0.0.255 --port 2770
+alces-hunt send --server 10.0.0.1 --port 2770 --auth secret
+alces-hunt send --broadcast --broadcast-address 10.0.0.255 --port 2770
 
 # Review and name nodes
 alces-hunt list --buffer --plain

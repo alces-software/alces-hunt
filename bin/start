@@ -13,14 +13,10 @@ if [ -z "$pid_file" ]; then
   exit 1
 fi
 
-if [ -z "${ALCES_HUNT_ROOT:-}" ]; then
-  echo "ALCES_HUNT_ROOT has not been set!" >&2
-  exit 1
-fi
-
 install_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-mkdir -p "${install_dir}/var/log"
+export ALCES_HUNT_ROOT="${ALCES_HUNT_ROOT:-$install_dir}"
+mkdir -p "${ALCES_HUNT_ROOT}/var/log"
 
 exec env ALCES_HUNT_pidfile="$pid_file" \
   "${install_dir}/bin/alces-hunt" autorun \
-  2>&1 | tee -a "${install_dir}/var/log/log.txt"
+  2>&1 | tee -a "${ALCES_HUNT_ROOT}/var/log/log.txt"
