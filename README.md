@@ -9,6 +9,28 @@ into a managed inventory with canonical labels and groups.
 Copyright (C) 2026 Alces Software Ltd. Distributed under the Eclipse Public
 License 2.0. See `LICENSE`, `LICENSE.EPL-2.0`, and `NOTICE`.
 
+## Pre-built binaries
+
+Push a tag `vX.Y.Z` to publish Linux amd64 and arm64 binaries on the
+[GitHub Releases](https://github.com/sierra-tango-echo/alces-hunt/releases)
+page. Each release includes the raw binary, a tarball (config example,
+licenses, systemd units, `bin/start`), and `SHA256SUMS`.
+
+```bash
+# Linux x86_64
+curl -fsSL -o alces-hunt \
+  https://github.com/sierra-tango-echo/alces-hunt/releases/latest/download/alces-hunt-linux-amd64
+chmod +x alces-hunt
+sudo install -m 0755 alces-hunt /usr/local/bin/alces-hunt
+```
+
+For arm64 use `alces-hunt-linux-arm64`. Builds from `main` are also
+available as workflow artifacts if you have not tagged a release yet.
+
+The binary needs a data root (`ALCES_HUNT_ROOT`) with `var/buffer` and
+`var/parsed`. Send mode still needs `dmidecode` on the node unless you
+pass `--label`.
+
 ## Install on a clean Linux host
 
 Server and send client (packages, Go, binary, systemd units):

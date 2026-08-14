@@ -1,0 +1,107 @@
+# Copyright (C) 2026 Alces Software Ltd.
+# SPDX-License-Identifier: EPL-2.0
+
+name: release
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Test
+        run: go test ./...
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Version
+        id: ver
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=0.0.0-dev+${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          mkdir -p dist staging
+          name="alces-hunt-${GOOS}-${GOARCH}"
+          go build -trimpath \
+            -ldflags "-s -w -X github.com/sierra-tango-echo/alces-hunt/internal/version.Version=${VERSION}" \
+            -o "dist/${name}" ./cmd/alces-hunt
+          mkdir -p "staging/${name}/bin" "staging/${name}/etc" "staging/${name}/systemd"
+          cp "dist/${name}" "staging/${name}/bin/alces-hunt"
+          cp bin/start "staging/${name}/bin/start"
+          cp etc/config.yml.ex "staging/${name}/etc/config.yml.ex"
+          cp systemd/*.service "staging/${name}/systemd/"
+          cp LICENSE LICENSE.EPL-2.0 NOTICE README.md "staging/${name}/"
+          tar -C staging -czf "dist/${name}.tar.gz" "${name}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alces-hunt-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Checksums
+        working-directory: artifacts
+        run: sha256sum alces-hunt-* > SHA256SUMS
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes \
+            artifacts/alces-hunt-linux-amd64 \
+            artifacts/alces-hunt-linux-amd64.tar.gz \
+            artifacts/alces-hunt-linux-arm64 \
+            artifacts/alces-hunt-linux-arm64.tar.gz \
+            artifacts/SHA256SUMS

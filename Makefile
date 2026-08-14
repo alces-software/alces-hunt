@@ -9,13 +9,23 @@ VERSION    ?= 1.0.0
 GO         ?= go
 LDFLAGS    := -s -w -X github.com/sierra-tango-echo/alces-hunt/internal/version.Version=$(VERSION)
 
-.PHONY: all build test install clean
+.PHONY: all build dist test install clean
 
 all: build
 
 build:
 	mkdir -p bin
 	$(GO) build -trimpath -ldflags "$(LDFLAGS)" -o bin/alces-hunt ./cmd/alces-hunt
+
+# Cross-compiled release binaries (matches GitHub Actions).
+dist:
+	mkdir -p dist
+	@for pair in linux/amd64 linux/arm64; do \
+		goos=$${pair%/*}; goarch=$${pair#*/}; \
+		name=alces-hunt-$${goos}-$${goarch}; \
+		echo "building $${name}"; \
+		CGO_ENABLED=0 GOOS=$${goos} GOARCH=$${goarch} $(GO) build -trimpath -ldflags "$(LDFLAGS)" -o dist/$${name} ./cmd/alces-hunt; \
+	done
 
 test:
 	$(GO) test ./...
@@ -35,3 +45,4 @@ install: build
 
 clean:
 	rm -f bin/alces-hunt
+	rm -rf dist
