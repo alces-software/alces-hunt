@@ -24,10 +24,11 @@
 #   REPO_SLUG=alces-software/alces-hunt
 #   PUBLISH=/var/www/hunter   copy install.sh, the downloaded tarball, and a
 #                             client config.yml into this directory
-#   DIST_URL=http://10.178.0.1/personalities/rocky-9/hunter/
-#                             download the tarball and config.yml from this
-#                             directory instead of GitHub. Set this on client
-#                             nodes (MODE=send) that cannot reach the internet.
+#   DIST_URL=                 directory to download the tarball and config.yml
+#                             from. Unset uses GitHub, except MODE=send, which
+#                             defaults to http://10.178.0.1/repo/alces-hunt/
+#                             and installs the config.yml published there.
+#                             Set DIST_URL empty with MODE=send to use GitHub.
 #                             The published config.yml sets target_host to
 #                             this machine's address (hostname -i).
 
@@ -41,7 +42,13 @@ TARGET_HOST="${TARGET_HOST:-}"
 BROADCAST_ADDRESS="${BROADCAST_ADDRESS:-}"
 ENABLE_SERVICE="${ENABLE_SERVICE:-0}"
 PUBLISH="${PUBLISH:-}"
-DIST_URL="${DIST_URL:-}"
+# Offline send installs take the published tree. Other modes use GitHub
+# unless DIST_URL is set. An explicit empty DIST_URL stays on GitHub.
+if [ "$MODE" = "send" ]; then
+  DIST_URL="${DIST_URL-http://10.178.0.1/repo/alces-hunt/}"
+else
+  DIST_URL="${DIST_URL-}"
+fi
 REPO_SLUG="${REPO_SLUG:-alces-software/alces-hunt}"
 RELEASE_BASE="https://github.com/${REPO_SLUG}/releases"
 
@@ -476,12 +483,12 @@ config.yml is the install-time config for clients: same port and auth_key,
 autorun_mode send, target_host set to this machine (hostname -i, or TARGET_HOST).
 Serve that directory over HTTP. On a node without internet:
 
-  curl -fsSL "http://10.178.0.1/personalities/rocky-9/hunter/install.sh" \\
-    | sudo env DIST_URL="http://10.178.0.1/personalities/rocky-9/hunter/" MODE=send bash
+  curl -fsSL "http://10.178.0.1/repo/alces-hunt/install.sh" \\
+    | sudo env MODE=send bash
 
-DIST_URL is the directory URL that contains install.sh and the tarball
-(the example host above is only an illustration). MODE=send installs the
-client. Leave DIST_URL unset to download from GitHub.
+MODE=send defaults DIST_URL to http://10.178.0.1/repo/alces-hunt/ and
+installs the config.yml published there. Set DIST_URL to use another
+mirror, or set it empty to download the release from GitHub.
 EOF
   fi
 }

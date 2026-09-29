@@ -50,7 +50,7 @@ Useful environment variables:
 | `PORT` / `AUTH_KEY` | written into a new `etc/config.yml` |
 | `ENABLE_SERVICE=1` | enable the systemd unit (system install) |
 | `PUBLISH` | directory to copy `install.sh`, the tarball, and a client `config.yml` into. Unset skips publishing |
-| `DIST_URL` | directory URL to download the tarball and `config.yml` from, instead of GitHub |
+| `DIST_URL` | unset uses GitHub. `MODE=send` defaults to `http://10.178.0.1/repo/alces-hunt/` |
 | `TARGET_HOST` | client server address published in `config.yml` (default: `hostname -i`) |
 | `BROADCAST_ADDRESS` | UDP broadcast address written into `config.yml`. Unset leaves broadcast off |
 
@@ -65,14 +65,14 @@ curl -fsSL https://raw.githubusercontent.com/alces-software/alces-hunt/main/inst
 
 `PUBLISH` is the directory that receives `install.sh`, `alces-hunt-linux-<arch>.tar.gz`, and `config.yml`. The published config carries the install-time settings (including `auth_key` and `port`), sets `autorun_mode` to `send`, and sets `target_host` to this machine's address from `hostname -i`. Set `TARGET_HOST` when that address is the wrong interface. Serve that directory over HTTP yourself.
 
-On each cluster node, point `DIST_URL` at that directory. The installer copies `config.yml` into place:
+On each cluster node, install in send mode. `MODE=send` defaults `DIST_URL` to `http://10.178.0.1/repo/alces-hunt/` and copies the published `config.yml` into place:
 
 ```bash
-curl -fsSL "http://10.178.0.1/personalities/rocky-9/hunter/install.sh" \
-  | sudo env DIST_URL="http://10.178.0.1/personalities/rocky-9/hunter/" MODE=send bash
+curl -fsSL "http://10.178.0.1/repo/alces-hunt/install.sh" \
+  | sudo env MODE=send bash
 ```
 
-`DIST_URL` is the directory that contains those files. A pinned `VERSION` is ignored while `DIST_URL` is set, because the mirror already holds the staged release. An existing `$PREFIX/etc/config.yml` is left unchanged.
+Set `DIST_URL` to another directory to use a different mirror, or set it empty to download that send install from GitHub. A pinned `VERSION` is ignored while `DIST_URL` is set, because the mirror already holds the staged release. An existing `$PREFIX/etc/config.yml` is left unchanged.
 
 ## Pre-built binaries
 
