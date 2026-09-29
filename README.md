@@ -49,9 +49,10 @@ Useful environment variables:
 | `MODE` | `both` (`server` / `send`; send may install `dmidecode` if root) |
 | `PORT` / `AUTH_KEY` | written into a new `etc/config.yml` |
 | `ENABLE_SERVICE=1` | enable the systemd unit (system install) |
-| `PUBLISH=1` | copy `install.sh`, the tarball, and a client `config.yml` into `$PREFIX/public` |
+| `PUBLISH` | directory to copy `install.sh`, the tarball, and a client `config.yml` into. Unset skips publishing |
 | `DIST_URL` | directory URL to download the tarball and `config.yml` from, instead of GitHub |
 | `TARGET_HOST` | client server address published in `config.yml` (default: `hostname -i`) |
+| `BROADCAST_ADDRESS` | UDP broadcast address written into `config.yml`. Unset leaves broadcast off |
 
 ### Nodes without internet
 
@@ -59,10 +60,10 @@ Install once on a host that can reach GitHub, and publish the script, tarball, a
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/alces-software/alces-hunt/main/install.sh \
-  | sudo env PUBLISH=1 AUTH_KEY=secret PORT=2770 bash
+  | sudo env PUBLISH=/var/www/hunter AUTH_KEY=secret PORT=2770 bash
 ```
 
-That writes `$PREFIX/public/install.sh`, `$PREFIX/public/alces-hunt-linux-<arch>.tar.gz`, and `$PREFIX/public/config.yml`. The published config carries the install-time settings (including `auth_key` and `port`), sets `autorun_mode` to `send`, and sets `target_host` to this machine's address from `hostname -i`. Set `TARGET_HOST` when that address is the wrong interface. Serve `public/` over HTTP yourself.
+`PUBLISH` is the directory that receives `install.sh`, `alces-hunt-linux-<arch>.tar.gz`, and `config.yml`. The published config carries the install-time settings (including `auth_key` and `port`), sets `autorun_mode` to `send`, and sets `target_host` to this machine's address from `hostname -i`. Set `TARGET_HOST` when that address is the wrong interface. Serve that directory over HTTP yourself.
 
 On each cluster node, point `DIST_URL` at that directory. The installer copies `config.yml` into place:
 

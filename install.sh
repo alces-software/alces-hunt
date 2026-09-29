@@ -17,11 +17,13 @@
 #   PORT=2770
 #   AUTH_KEY=
 #   TARGET_HOST=
+#   BROADCAST_ADDRESS=        UDP broadcast address. Unset leaves broadcast
+#                             disabled (broadcast_address is not written).
 #   AUTORUN_MODE=hunt|send
 #   ENABLE_SERVICE=1          enable systemd unit (system install only)
 #   REPO_SLUG=alces-software/alces-hunt
-#   PUBLISH=1                 copy install.sh, the downloaded tarball, and a
-#                             client config.yml into $PREFIX/public
+#   PUBLISH=/var/www/hunter   copy install.sh, the downloaded tarball, and a
+#                             client config.yml into this directory
 #   DIST_URL=http://10.178.0.1/personalities/rocky-9/hunter/
 #                             download the tarball and config.yml from this
 #                             directory instead of GitHub. Set this on client
@@ -36,8 +38,9 @@ VERSION="${VERSION:-latest}"
 PORT="${PORT:-2770}"
 AUTH_KEY="${AUTH_KEY:-}"
 TARGET_HOST="${TARGET_HOST:-}"
+BROADCAST_ADDRESS="${BROADCAST_ADDRESS:-}"
 ENABLE_SERVICE="${ENABLE_SERVICE:-0}"
-PUBLISH="${PUBLISH:-0}"
+PUBLISH="${PUBLISH:-}"
 DIST_URL="${DIST_URL:-}"
 REPO_SLUG="${REPO_SLUG:-alces-software/alces-hunt}"
 RELEASE_BASE="https://github.com/${REPO_SLUG}/releases"
@@ -180,7 +183,6 @@ autorun_mode: ${autorun}
 include_self: false
 allow_existing: false
 auth_key: "${AUTH_KEY}"
-broadcast_address: 255.255.255.255
 default_label: long
 default_start: "01"
 skip_used_index: true
@@ -188,6 +190,9 @@ retry_interval: 5
 EOF
   if [ -n "$TARGET_HOST" ]; then
     printf 'target_host: %s\n' "$TARGET_HOST" >>"$dest"
+  fi
+  if [ -n "$BROADCAST_ADDRESS" ]; then
+    printf 'broadcast_address: "%s"\n' "$BROADCAST_ADDRESS" >>"$dest"
   fi
   chmod 0644 "$dest"
 }
@@ -406,13 +411,13 @@ fetch_dist_config() {
 # Stage the script and the release payload that this run actually downloaded
 # so another host can install them without reaching GitHub.
 publish_dist() {
-  [ "$PUBLISH" = "1" ] || return 0
-  local pub="${PREFIX}/public"
-  local name tarball
+  [ -n "$PUBLISH" ] || return 0
+  local pub name tarball
+  mkdir -p "$PUBLISH"
+  pub="$(cd "$PUBLISH" && pwd)"
+  chmod 0755 "$pub"
   name="alces-hunt-linux-${ARCH}"
   tarball="${name}.tar.gz"
-  mkdir -p "$pub"
-  chmod 0755 "$pub"
 
   if [ -f "${STAGING}/${tarball}" ]; then
     install -m 0644 "${STAGING}/${tarball}" "${pub}/${tarball}"
@@ -422,12 +427,13 @@ publish_dist() {
     install -m 0755 "${EXTRACTED}/bin/alces-hunt" "${pub}/${name}"
     log "published ${pub}/${name}"
   else
-    die "PUBLISH=1 but no release tarball or binary is available to copy"
+    die "PUBLISH=${PUBLISH} but no release tarball or binary is available to copy"
   fi
 
   publish_install_script "${pub}/install.sh"
   log "published ${pub}/install.sh"
   publish_client_config "${pub}/config.yml"
+  PUBLISH_DIR="$pub"
   PUBLISHED=1
 }
 
@@ -464,7 +470,7 @@ EOF
   if [ "${PUBLISHED:-0}" = "1" ]; then
     cat <<EOF
 
-Local distribution files are in ${PREFIX}/public
+Local distribution files are in ${PUBLISH_DIR}
 (install.sh, the tarball, and config.yml).
 config.yml is the install-time config for clients: same port and auth_key,
 autorun_mode send, target_host set to this machine (hostname -i, or TARGET_HOST).
@@ -506,6 +512,11 @@ main() {
       *) die "DIST_URL must be an http, https, or file URL (got '${DIST_URL}')" ;;
     esac
   fi
+  case "$PUBLISH" in
+    1|0|true|false|yes|no)
+      die "PUBLISH must be the directory for download files, for example PUBLISH=/var/www/hunter"
+      ;;
+  esac
   log "prefix=${PREFIX} bindir=${BINDIR} arch=${ARCH} version=${VERSION} dist=${DIST_URL:-github}"
   install_runtime_packages
   STAGING=""
