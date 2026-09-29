@@ -49,6 +49,26 @@ Useful environment variables:
 | `MODE` | `both` (`server` / `send`; send may install `dmidecode` if root) |
 | `PORT` / `AUTH_KEY` / `TARGET_HOST` | written into a new `etc/config.yml` |
 | `ENABLE_SERVICE=1` | enable the systemd unit (system install) |
+| `PUBLISH=1` | copy `install.sh` and the downloaded tarball into `$PREFIX/public` |
+| `DIST_URL` | directory URL to download from, instead of GitHub |
+
+### Nodes without internet
+
+Install once on a host that can reach GitHub, and publish the same script and tarball:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/alces-software/alces-hunt/main/install.sh \
+  | sudo env PUBLISH=1 bash
+```
+
+That writes `$PREFIX/public/install.sh` and `$PREFIX/public/alces-hunt-linux-<arch>.tar.gz`. Serve `public/` over HTTP yourself. On each cluster node, point `DIST_URL` at that directory and install in send mode:
+
+```bash
+curl -fsSL "http://10.178.0.1/personalities/rocky-9/hunter/install.sh" \
+  | sudo env DIST_URL="http://10.178.0.1/personalities/rocky-9/hunter/" MODE=send bash
+```
+
+`DIST_URL` is the directory that contains those files. A pinned `VERSION` is ignored while `DIST_URL` is set, because the mirror already holds the staged release.
 
 ## Pre-built binaries
 

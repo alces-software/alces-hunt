@@ -20,6 +20,12 @@
 #   AUTORUN_MODE=hunt|send
 #   ENABLE_SERVICE=1          enable systemd unit (system install only)
 #   REPO_SLUG=alces-software/alces-hunt
+#   PUBLISH=1                 copy install.sh and the downloaded tarball into
+#                             $PREFIX/public (serve that directory over HTTP)
+#   DIST_URL=http://10.178.0.1/personalities/rocky-9/hunter/
+#                             download install assets from this directory
+#                             instead of GitHub. Set this on client nodes
+#                             (MODE=send) that cannot reach the internet.
 
 set -euo pipefail
 
@@ -29,6 +35,8 @@ PORT="${PORT:-2770}"
 AUTH_KEY="${AUTH_KEY:-}"
 TARGET_HOST="${TARGET_HOST:-}"
 ENABLE_SERVICE="${ENABLE_SERVICE:-0}"
+PUBLISH="${PUBLISH:-0}"
+DIST_URL="${DIST_URL:-}"
 REPO_SLUG="${REPO_SLUG:-alces-software/alces-hunt}"
 RELEASE_BASE="https://github.com/${REPO_SLUG}/releases"
 
@@ -90,6 +98,10 @@ need_curl() {
 
 asset_url() {
   local file="$1"
+  if [ -n "$DIST_URL" ]; then
+    printf '%s/%s' "${DIST_URL%/}" "$file"
+    return 0
+  fi
   if [ "$VERSION" = "latest" ]; then
     printf '%s/latest/download/%s' "$RELEASE_BASE" "$file"
   else
@@ -306,6 +318,56 @@ maybe_enable_service() {
   esac
 }
 
+publish_install_script() {
+  local dest="$1"
+  if [ -n "${BASH_SOURCE[0]:-}" ] && [ -f "${BASH_SOURCE[0]}" ]; then
+    install -m 0644 "${BASH_SOURCE[0]}" "$dest"
+    return 0
+  fi
+
+  local url ref
+  if [ -n "$DIST_URL" ]; then
+    url="$(asset_url install.sh)"
+  else
+    ref="main"
+    if [ "$VERSION" != "latest" ]; then
+      ref="$VERSION"
+    fi
+    url="https://raw.githubusercontent.com/${REPO_SLUG}/${ref}/install.sh"
+  fi
+  log "downloading ${url}"
+  curl -fL --retry 3 --retry-delay 1 -o "$dest" "$url" \
+    || die "failed to download install.sh from ${url}"
+  chmod 0644 "$dest"
+}
+
+# Stage the script and the release payload that this run actually downloaded
+# so another host can install them without reaching GitHub.
+publish_dist() {
+  [ "$PUBLISH" = "1" ] || return 0
+  local pub="${PREFIX}/public"
+  local name tarball
+  name="alces-hunt-linux-${ARCH}"
+  tarball="${name}.tar.gz"
+  mkdir -p "$pub"
+  chmod 0755 "$pub"
+
+  if [ -f "${STAGING}/${tarball}" ]; then
+    install -m 0644 "${STAGING}/${tarball}" "${pub}/${tarball}"
+    log "published ${pub}/${tarball}"
+  elif [ -f "${EXTRACTED}/bin/alces-hunt" ]; then
+    warn "release tarball was not downloaded; publishing the raw binary only"
+    install -m 0755 "${EXTRACTED}/bin/alces-hunt" "${pub}/${name}"
+    log "published ${pub}/${name}"
+  else
+    die "PUBLISH=1 but no release tarball or binary is available to copy"
+  fi
+
+  publish_install_script "${pub}/install.sh"
+  log "published ${pub}/install.sh"
+  PUBLISHED=1
+}
+
 print_next_steps() {
   cat <<EOF
 
@@ -336,6 +398,20 @@ Send (needs dmidecode unless you pass --label):
 
 Every config key can be overridden with ALCES_HUNT_<key>.
 EOF
+  if [ "${PUBLISHED:-0}" = "1" ]; then
+    cat <<EOF
+
+Local distribution files are in ${PREFIX}/public.
+Serve that directory over HTTP. On a node without internet:
+
+  curl -fsSL "http://10.178.0.1/personalities/rocky-9/hunter/install.sh" \\
+    | sudo env DIST_URL="http://10.178.0.1/personalities/rocky-9/hunter/" MODE=send bash
+
+DIST_URL is the directory URL that contains install.sh and the tarball
+(the example host above is only an illustration). MODE=send installs the
+client. Leave DIST_URL unset to download from GitHub.
+EOF
+  fi
 }
 
 cleanup() {
@@ -354,12 +430,20 @@ main() {
   choose_bindir
   detect_arch
   need_curl
-  log "prefix=${PREFIX} bindir=${BINDIR} arch=${ARCH} version=${VERSION}"
+  if [ -n "$DIST_URL" ]; then
+    case "$DIST_URL" in
+      http://*|https://*|file://*) ;;
+      *) die "DIST_URL must be an http, https, or file URL (got '${DIST_URL}')" ;;
+    esac
+  fi
+  log "prefix=${PREFIX} bindir=${BINDIR} arch=${ARCH} version=${VERSION} dist=${DIST_URL:-github}"
   install_runtime_packages
   STAGING=""
   EXTRACTED=""
+  PUBLISHED=0
   download_release
   install_tree "$EXTRACTED"
+  publish_dist
   maybe_enable_service
   print_next_steps
 }
