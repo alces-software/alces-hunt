@@ -20,12 +20,14 @@
 #   AUTORUN_MODE=hunt|send
 #   ENABLE_SERVICE=1          enable systemd unit (system install only)
 #   REPO_SLUG=alces-software/alces-hunt
-#   PUBLISH=1                 copy install.sh and the downloaded tarball into
-#                             $PREFIX/public (serve that directory over HTTP)
+#   PUBLISH=1                 copy install.sh, the downloaded tarball, and a
+#                             client config.yml into $PREFIX/public
 #   DIST_URL=http://10.178.0.1/personalities/rocky-9/hunter/
-#                             download install assets from this directory
-#                             instead of GitHub. Set this on client nodes
-#                             (MODE=send) that cannot reach the internet.
+#                             download the tarball and config.yml from this
+#                             directory instead of GitHub. Set this on client
+#                             nodes (MODE=send) that cannot reach the internet.
+#                             The published config.yml sets target_host to
+#                             this machine's address (hostname -i).
 
 set -euo pipefail
 
@@ -341,6 +343,66 @@ publish_install_script() {
   chmod 0644 "$dest"
 }
 
+# First address from `hostname -i`, skipping loopback. TARGET_HOST wins when set.
+publisher_address() {
+  if [ -n "$TARGET_HOST" ]; then
+    printf '%s\n' "$TARGET_HOST"
+    return 0
+  fi
+  local ips ip
+  ips="$(hostname -i 2>/dev/null || true)"
+  for ip in $ips; do
+    case "$ip" in
+      127.*|::1|0.0.0.0) continue ;;
+      *[0-9]*) printf '%s\n' "$ip"; return 0 ;;
+    esac
+  done
+  ips="$(hostname -I 2>/dev/null || true)"
+  for ip in $ips; do
+    case "$ip" in
+      127.*|::1|0.0.0.0) continue ;;
+      *[0-9]*) printf '%s\n' "$ip"; return 0 ;;
+    esac
+  done
+  die "could not determine this host's address from hostname -i; set TARGET_HOST"
+}
+
+# Client config: the install-time config, with send mode and this host as the server.
+publish_client_config() {
+  local dest="$1"
+  local host src line
+  host="$(publisher_address)"
+  src="${PREFIX}/etc/config.yml"
+  [ -f "$src" ] || die "no ${src} to publish"
+  : >"$dest"
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      autorun_mode:*|target_host:*) continue ;;
+    esac
+    printf '%s\n' "$line" >>"$dest"
+  done <"$src"
+  printf 'autorun_mode: send\n' >>"$dest"
+  printf 'target_host: "%s"\n' "$host" >>"$dest"
+  chmod 0644 "$dest"
+  log "published ${dest} (target_host=${host})"
+}
+
+# Offline clients take the config that was published next to the tarball.
+fetch_dist_config() {
+  [ -n "$DIST_URL" ] || return 0
+  local dest url
+  dest="${PREFIX}/etc/config.yml"
+  if [ "${CONFIG_EXISTED:-0}" = "1" ]; then
+    return 0
+  fi
+  url="$(asset_url config.yml)"
+  log "downloading ${url}"
+  curl -fL --retry 3 --retry-delay 1 -o "$dest" "$url" \
+    || die "failed to download config.yml from ${url}"
+  chmod 0644 "$dest"
+  log "installed client config ${dest}"
+}
+
 # Stage the script and the release payload that this run actually downloaded
 # so another host can install them without reaching GitHub.
 publish_dist() {
@@ -365,6 +427,7 @@ publish_dist() {
 
   publish_install_script "${pub}/install.sh"
   log "published ${pub}/install.sh"
+  publish_client_config "${pub}/config.yml"
   PUBLISHED=1
 }
 
@@ -401,7 +464,10 @@ EOF
   if [ "${PUBLISHED:-0}" = "1" ]; then
     cat <<EOF
 
-Local distribution files are in ${PREFIX}/public.
+Local distribution files are in ${PREFIX}/public
+(install.sh, the tarball, and config.yml).
+config.yml is the install-time config for clients: same port and auth_key,
+autorun_mode send, target_host set to this machine (hostname -i, or TARGET_HOST).
 Serve that directory over HTTP. On a node without internet:
 
   curl -fsSL "http://10.178.0.1/personalities/rocky-9/hunter/install.sh" \\
@@ -428,6 +494,10 @@ main() {
   trap cleanup EXIT
   choose_prefix
   choose_bindir
+  CONFIG_EXISTED=0
+  if [ -f "${PREFIX}/etc/config.yml" ]; then
+    CONFIG_EXISTED=1
+  fi
   detect_arch
   need_curl
   if [ -n "$DIST_URL" ]; then
@@ -443,6 +513,7 @@ main() {
   PUBLISHED=0
   download_release
   install_tree "$EXTRACTED"
+  fetch_dist_config
   publish_dist
   maybe_enable_service
   print_next_steps

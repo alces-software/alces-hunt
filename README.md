@@ -47,28 +47,31 @@ Useful environment variables:
 | `VERSION` | `latest` (or pin e.g. `v0.2`) |
 | `PREFIX` | `/opt/alces-hunt` if writable, else `~/.local/alces-hunt` |
 | `MODE` | `both` (`server` / `send`; send may install `dmidecode` if root) |
-| `PORT` / `AUTH_KEY` / `TARGET_HOST` | written into a new `etc/config.yml` |
+| `PORT` / `AUTH_KEY` | written into a new `etc/config.yml` |
 | `ENABLE_SERVICE=1` | enable the systemd unit (system install) |
-| `PUBLISH=1` | copy `install.sh` and the downloaded tarball into `$PREFIX/public` |
-| `DIST_URL` | directory URL to download from, instead of GitHub |
+| `PUBLISH=1` | copy `install.sh`, the tarball, and a client `config.yml` into `$PREFIX/public` |
+| `DIST_URL` | directory URL to download the tarball and `config.yml` from, instead of GitHub |
+| `TARGET_HOST` | client server address published in `config.yml` (default: `hostname -i`) |
 
 ### Nodes without internet
 
-Install once on a host that can reach GitHub, and publish the same script and tarball:
+Install once on a host that can reach GitHub, and publish the script, tarball, and client config. Pass the same `AUTH_KEY` and `PORT` the server should use:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/alces-software/alces-hunt/main/install.sh \
-  | sudo env PUBLISH=1 bash
+  | sudo env PUBLISH=1 AUTH_KEY=secret PORT=2770 bash
 ```
 
-That writes `$PREFIX/public/install.sh` and `$PREFIX/public/alces-hunt-linux-<arch>.tar.gz`. Serve `public/` over HTTP yourself. On each cluster node, point `DIST_URL` at that directory and install in send mode:
+That writes `$PREFIX/public/install.sh`, `$PREFIX/public/alces-hunt-linux-<arch>.tar.gz`, and `$PREFIX/public/config.yml`. The published config carries the install-time settings (including `auth_key` and `port`), sets `autorun_mode` to `send`, and sets `target_host` to this machine's address from `hostname -i`. Set `TARGET_HOST` when that address is the wrong interface. Serve `public/` over HTTP yourself.
+
+On each cluster node, point `DIST_URL` at that directory. The installer copies `config.yml` into place:
 
 ```bash
 curl -fsSL "http://10.178.0.1/personalities/rocky-9/hunter/install.sh" \
   | sudo env DIST_URL="http://10.178.0.1/personalities/rocky-9/hunter/" MODE=send bash
 ```
 
-`DIST_URL` is the directory that contains those files. A pinned `VERSION` is ignored while `DIST_URL` is set, because the mirror already holds the staged release.
+`DIST_URL` is the directory that contains those files. A pinned `VERSION` is ignored while `DIST_URL` is set, because the mirror already holds the staged release. An existing `$PREFIX/etc/config.yml` is left unchanged.
 
 ## Pre-built binaries
 
